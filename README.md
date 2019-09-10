@@ -11,7 +11,7 @@ pip install .
 
 # Docker Hub
 
-https://hub.docker.com/r/veoibd/veoibddatasubmission
+The [Dockerfile](Dockerfile) is automatically built at https://hub.docker.com/r/veoibd/veoibddatasubmission.
 
 # Travis
 
