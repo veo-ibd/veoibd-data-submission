@@ -1,0 +1,14 @@
+sudo: required
+language: python
+script:
+  - python setup.py install
+
+before_install:
+  - pip install -r requirements.txt
+
+matrix:
+  include:
+    - os: linux
+      python: 3.6.2
+    - os: linux
+      python: 3.7
