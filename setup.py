@@ -19,4 +19,6 @@ setup(name='veoibddatasubmission',
       python_requires='>=3.5',
       install_requires=[
         'pandas>=0.20.0',
-        'synapseclient>=1.9'])
+        'synapseclient>=1.9',
+        'jsonschema',
+        'jsonref'])
