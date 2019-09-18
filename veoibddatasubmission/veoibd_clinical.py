@@ -1,9 +1,13 @@
 from collections.abc import Sequence
 import datetime
+import json
 import logging
 import os
 import tempfile
+import urllib
 
+import jsonschema
+import jsonref
 import pandas as pd
 import synapseclient
 
@@ -12,12 +16,14 @@ from genie import process_functions
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 class Clinical(FileTypeFormat):
 
     # This should match what is in the database mapping table
     _fileType = "clinical_filetype"
+
+    _schema_url = "file:///home/kdaily/scratch/test_json_schema.json"
 
     _required_filename = "clinical_filetype.csv"
 
@@ -34,7 +40,7 @@ class Clinical(FileTypeFormat):
 
     def _validateFilename(self, filePath):
 
-        if isinstance(filePath, Sequence):
+        if isinstance(filePath, list):
             filePath = filePath[0]
         
         if os.path.basename(filePath) == self._required_filename:
@@ -47,23 +53,28 @@ class Clinical(FileTypeFormat):
 
 
     def _get_dataframe(self, filePathList):
-        if isinstance(filePathList, Sequence):
+        if isinstance(filePathList, list):
             filePathList = filePathList[0]
 
-        df = pd.read_csv(filePathList, comment="#")
-        df['center'] = self.center
+        df = pd.read_csv(filePathList, 
+                         true_values=["TRUE", "true", "True"],
+                         false_values=["FALSE", "false", "False"])
+        df = df.fillna("")
 
         return(df)
 
 
     def process_steps(self, data, databaseToSynIdMappingDf, 
                       newPath, parentId):
-        patientSynId = databaseToSynIdMappingDf.Id[
+        table_id = databaseToSynIdMappingDf.Id[
             databaseToSynIdMappingDf['Database'] == self._fileType][0]
         
-        process_functions.updateData(syn=self.syn, databaseSynId=patientSynId, 
+        data['center'] = self.center
+
+        logger.debug(f"Updating {self._fileType} data in table {table_id}.")
+        process_functions.updateData(syn=self.syn, databaseSynId=table_id, 
                                      newData=data, filterBy=self.center,
-                                     filterByColumn="center", col=self._required_columns,
+                                     filterByColumn="center", col=None,
                                      toDelete=True)
         
         data.to_csv(newPath, sep="\t", index=False)
@@ -84,18 +95,25 @@ class Clinical(FileTypeFormat):
         total_error = ""
         warning = ""
 
-        data = data.fillna("")
+        data_dicts = data.to_dict(orient="records")
 
-        # CHECK: SAMPLE_ID
-        _hasColumnDict = dict()
-        logger.debug("My required columns are: {}".format(self._required_columns))
-        for column in self._required_columns:
-            _hasColumnDict[column] = process_functions.checkColExist(data, 
-                                                                     column)
+        clean_data_dicts = []
 
-            if not _hasColumnDict[column]:
-                total_error += \
-                    "File must have {} column.\n".format(column)
+        for row in data_dicts:
+            for k in row: 
+                if row[k] in ['TRUE', 'FALSE']: 
+                    row[k] = True if row[k] == 'TRUE' else False
+                if row[k] in ['']:
+                    row[k] = None
+            clean_row = {k: v for k, v in row.items() if v is not None}
+            clean_data_dicts.append(clean_row)
+
+        schema = jsonref.load(urllib.request.urlopen(self._schema_url))
+        val = jsonschema.Draft7Validator(schema=schema)
+        for n, record in enumerate(clean_data_dicts): 
+            i = val.iter_errors(record) 
+            for error in i: 
+                total_error += f"Row {n} had the following error in column '{error.path}': {error.message}\n"
 
         # Check if the count of the primary key is not distinct
         res = data.groupby(self._primary_key_columns).size()
@@ -107,15 +125,11 @@ class Clinical(FileTypeFormat):
 class ClinicalIndividual(Clinical):
 
     _fileType = "veoibd_clinical_individual"
+    _schema_url = "https://raw.githubusercontent.com/kdaily/JSON-validation-schemas/master/validation_schemas/VEOIBD/veoibd_metadata_schema.json"
 
     _required_filename = "clinical_individual.csv"
     
-    _required_columns = ["individual_id", "age", "sex", "birth_country",
-                         "ethnicity","family_hx_ibd","degree_one_with_ibd",
-                         "degree_two_with_ibd","initial_dx","gi_site","eim",
-                         "dx_perianal","dx_medication","comments", "center"]
-
-    _primary_key_columns = ["individual_id"]
+    _primary_key_columns = ["individualID"]
 
 
 class ClinicalSample(Clinical):
@@ -123,7 +137,7 @@ class ClinicalSample(Clinical):
     _fileType = "veoibd_clinical_sample"
 
     _required_filename = "clinical_sample.csv"
-        
+
     _required_columns = ["sample_id", "individual_id", "assay_id", "center"]
 
     _primary_key_columns = ["sample_id"]
