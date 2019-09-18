@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import re
 import tempfile
 import urllib
 
@@ -25,7 +26,7 @@ class Vcf(FileTypeFormat):
     """
 
     # This should match what is in the database mapping table
-    _fileType = "vcf"
+    _fileType = "veoibd_vcf"
 
     # The filename must match this regular expression
     _required_filename = "^VEOIBD-.+-.+-.+\.vcf$"
@@ -36,6 +37,8 @@ class Vcf(FileTypeFormat):
     _process_kwargs = [
         "newPath", "parentId", "databaseToSynIdMappingDf"]
 
+    _required_columns = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"]
+
     def _validateFilename(self, filePath):
 
         if isinstance(filePath, list):
@@ -45,16 +48,18 @@ class Vcf(FileTypeFormat):
         if compiled_re.fullmatch(os.path.basename(filePath)):
             logger.debug("{} filename is validated.".format(self._fileType))
         else:
-            logger.debug("{} filename is not valid: {}.".format(self._fileType, filePath))
-            raise AssertionError("{} filename ({}) is not correct.".format(self._fileType,
-                                                                           os.path.basename(filePath))
+            err_msg = "{} filename is not valid: {}.".format(self._fileType, os.path.basename(filePath))
+            logger.debug(err_msg)
+            raise AssertionError(err_msg)
 
 
     def _get_dataframe(self, filePathList):
         headers = None
 
-        if isinstance(filePath, list):
+        if isinstance(filePathList, list):
             filepath = filePathList[0]
+        else:
+            filepath = filePathList
 
         with open(filepath, "r") as vcffile:
             lines = [l for l in vcffile if not l.startswith('##')]
@@ -62,16 +67,9 @@ class Vcf(FileTypeFormat):
         if not lines[0].startswith("#CHROM"):
             raise ValueError("Your vcf must start with the header #CHROM")
 
-        sample_id = os.path.basename(filePath).rstrip(".vcf")
-        compiled_re = re.compile(f"^{sample_id}$")
-
-        if not compiled_re.fullmatch(lines[0]):
-            raise ValueError("Your vcf does not contain a column for the sample named by the file.")
-
         lines[0] = lines[0].lstrip("#")
         vcf = pd.read_csv(io.StringIO(''.join(lines)),
-                          sep="\t", names=headers)
-        else:
+                        sep="\t", names=headers)
         return(vcf)
 
     def process_steps(self, data, databaseToSynIdMappingDf, 
@@ -105,29 +103,20 @@ class Vcf(FileTypeFormat):
         total_error = ""
         warning = ""
 
-        data_dicts = data.to_dict(orient="records")
+        compiled_re = re.compile(self._required_id_format)
+        for required_column in self._required_columns:
+            if required_column not in data.columns:
+                total_error += f"Your vcf does not contain a {required_column} column.\n"
 
-        clean_data_dicts = []
+        sample_columns = []
+        for column in data.columns:
+            if compiled_re.fullmatch(column):
+                sample_columns.append(column)
+        
+        if not sample_columns:
+            total_error += "Your vcf does not contain a column for the sample named by the file.\n"
 
-        for row in data_dicts:
-            for k in row: 
-                if row[k] in ['TRUE', 'FALSE']: 
-                    row[k] = True if row[k] == 'TRUE' else False
-                if row[k] in ['']:
-                    row[k] = None
-            clean_row = {k: v for k, v in row.items() if v is not None}
-            clean_data_dicts.append(clean_row)
-
-        schema = jsonref.load(urllib.request.urlopen(self._schema_url))
-        val = jsonschema.Draft7Validator(schema=schema)
-        for n, record in enumerate(clean_data_dicts): 
-            i = val.iter_errors(record) 
-            for error in i: 
-                total_error += f"Row {n} had the following error in column '{error.path}': {error.message}\n"
-
-        # Check if the count of the primary key is not distinct
-        res = data.groupby(self._primary_key_columns).size()
-        if (res > 1).any():
-            total_error += "Found duplicated {primaryKey}'s in the file.".format(primaryKey=self._primary_key_columns)
+        if len(sample_columns) > 1:
+            total_error += "Your vcf contains more than one a sample column.\n"
 
         return(total_error, warning)
