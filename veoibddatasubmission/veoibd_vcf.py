@@ -72,22 +72,30 @@ class Vcf(FileTypeFormat):
                         sep="\t", names=headers)
         return(vcf)
 
-    def process_steps(self, data, databaseToSynIdMappingDf, 
-                      newPath, parentId):
-        table_id = databaseToSynIdMappingDf.Id[
-            databaseToSynIdMappingDf['Database'] == self._fileType][0]
-        
-        data['center'] = self.center
+    def process_steps(self, filePath, databaseToSynIdMappingDf):
+        logger.debug("Performing process_steps for {}".format(self._fileType))
 
-        logger.debug(f"Updating {self._fileType} data in table {table_id}.")
+        folder_id = databaseToSynIdMappingDf.Id[
+            databaseToSynIdMappingDf['Database'] == self._fileType][0]
+
+        table_id = databaseToSynIdMappingDf.Id[
+            databaseToSynIdMappingDf['Database'] == f"{self._fileType}_table"][0]
+
+        logger.debug(f"Storing file at {folder_id}")
+        f = self.syn.store(synapseclient.File(filePath, parent=folder_id,
+                                              annotations=dict(center=self.center, 
+                                                           fileType=self._fileType)),
+                           forceVersion=False)
+
+        # Add information about assay to the table
+        data = self._get_dataframe(filePath)
+        data['entity_id'] = f.id
         process_functions.updateData(syn=self.syn, databaseSynId=table_id, 
                                      newData=data, filterBy=self.center,
-                                     filterByColumn="center", col=None,
+                                     filterByColumn="center", col=self._required_columns,
                                      toDelete=True)
-        
-        data.to_csv(newPath, sep="\t", index=False)
-        return(newPath)
 
+        return(filePath)
 
     def _validate(self, data):
         """
