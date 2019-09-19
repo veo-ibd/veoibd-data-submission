@@ -23,7 +23,7 @@ class Clinical(FileTypeFormat):
     # This should match what is in the database mapping table
     _fileType = "clinical_filetype"
 
-    _schema_url = "file:///home/kdaily/scratch/test_json_schema.json"
+    _schema_url = None
 
     _required_filename = "clinical_filetype.csv"
 
@@ -132,12 +132,11 @@ class ClinicalIndividual(Clinical):
     _primary_key_columns = ["individualID"]
 
 
-class ClinicalSample(Clinical):
+class ClinicalSpecimen(Clinical):
 
     _fileType = "veoibd_clinical_specimen"
+    _schema_url = "https://raw.githubusercontent.com/kdaily/JSON-validation-schemas/master/validation_schemas/VEOIBD/veoibd_specimen_schema.json"
 
     _required_filename = "clinical_specimen.csv"
-
-    _required_columns = ["specimenID", "individualID", "assay_id", "center"]
 
     _primary_key_columns = ["specimenID"]
