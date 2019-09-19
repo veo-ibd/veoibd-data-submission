@@ -29,10 +29,10 @@ class Vcf(FileTypeFormat):
     _fileType = "veoibd_vcf"
 
     # The filename must match this regular expression
-    _required_filename = "^VEOIBD-.+-.+-.+\.vcf$"
+    _required_filename = r"^VEOIBD-.+-.+-.+\.vcf$"
 
     # The sample ID must match this regular expression
-    _required_id_format = "^VEOIBD-.+-.+-.+$"
+    _required_id_format = r"^VEOIBD-.+-.+-.+$"
 
     _process_kwargs = [
         "newPath", "parentId", "databaseToSynIdMappingDf"]
@@ -78,22 +78,13 @@ class Vcf(FileTypeFormat):
         folder_id = databaseToSynIdMappingDf.Id[
             databaseToSynIdMappingDf['Database'] == self._fileType][0]
 
-        table_id = databaseToSynIdMappingDf.Id[
-            databaseToSynIdMappingDf['Database'] == f"{self._fileType}_table"][0]
-
+        specimen_id = os.path.basename(filePath).rstrip(".vcf")
         logger.debug(f"Storing file at {folder_id}")
         f = self.syn.store(synapseclient.File(filePath, parent=folder_id,
-                                              annotations=dict(center=self.center, 
-                                                           fileType=self._fileType)),
+                                              annotations=dict(center=self.center,
+                                                               specimenID=specimen_id, 
+                                                               fileType=self._fileType)),
                            forceVersion=False)
-
-        # Add information about assay to the table
-        data = self._get_dataframe(filePath)
-        data['entity_id'] = f.id
-        process_functions.updateData(syn=self.syn, databaseSynId=table_id, 
-                                     newData=data, filterBy=self.center,
-                                     filterByColumn="center", col=self._required_columns,
-                                     toDelete=True)
 
         return(filePath)
 
