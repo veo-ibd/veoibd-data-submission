@@ -134,10 +134,10 @@ class ClinicalIndividual(Clinical):
 
 class ClinicalSample(Clinical):
 
-    _fileType = "veoibd_clinical_sample"
+    _fileType = "veoibd_clinical_specimen"
 
-    _required_filename = "clinical_sample.csv"
+    _required_filename = "clinical_specimen.csv"
 
-    _required_columns = ["sample_id", "individual_id", "assay_id", "center"]
+    _required_columns = ["specimenID", "individualID", "assay_id", "center"]
 
-    _primary_key_columns = ["sample_id"]
+    _primary_key_columns = ["specimenID"]
