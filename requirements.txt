@@ -1,1 +1,1 @@
-git+https://github.com/veo-ibd/Genie.git@master#genie-4.0.0-dev
+git+https://github.com/veo-ibd/Genie.git@hotfix-remove-vcf-process-filter#genie-4.0.1-dev
