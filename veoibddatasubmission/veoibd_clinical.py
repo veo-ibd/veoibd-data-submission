@@ -64,8 +64,11 @@ class Clinical(FileTypeFormat):
         return(df)
 
 
-    def process_steps(self, data, databaseToSynIdMappingDf, 
+    def process_steps(self, filePath, databaseToSynIdMappingDf, 
                       newPath, parentId):
+
+        data = self._get_dataframe(filePath)
+
         table_id = databaseToSynIdMappingDf.Id[
             databaseToSynIdMappingDf['Database'] == self._fileType][0]
         

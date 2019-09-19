@@ -34,8 +34,7 @@ class Vcf(FileTypeFormat):
     # The sample ID must match this regular expression
     _required_id_format = r"^VEOIBD-.+-.+-.+$"
 
-    _process_kwargs = [
-        "newPath", "parentId", "databaseToSynIdMappingDf"]
+    _process_kwargs = ["databaseToSynIdMappingDf"]
 
     _required_columns = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"]
 
@@ -73,6 +72,8 @@ class Vcf(FileTypeFormat):
         return(vcf)
 
     def process_steps(self, filePath, databaseToSynIdMappingDf):
+
+        data = self._get_dataframe(filePath)
         logger.debug("Performing process_steps for {}".format(self._fileType))
 
         folder_id = databaseToSynIdMappingDf.Id[
