@@ -128,7 +128,7 @@ class Clinical(FileTypeFormat):
 class ClinicalIndividual(Clinical):
 
     _fileType = "veoibd_clinical_individual"
-    _schema_url = "https://veo-ibd.github.io/veoibd-schemas/assets/releases/v0.0.2-dev/veoibd_individual_schema.json"
+    _schema_url = "https://veo-ibd.github.io/veoibd-schemas/assets/releases/v0.0.3-dev/veoibd_individual_schema.json"
 
     _required_filename = "clinical_individual.csv"
     
@@ -138,7 +138,7 @@ class ClinicalIndividual(Clinical):
 class ClinicalSpecimen(Clinical):
 
     _fileType = "veoibd_clinical_specimen"
-    _schema_url = "https://veo-ibd.github.io/veoibd-schemas/assets/releases/v0.0.2-dev/veoibd_specimen_schema.json"
+    _schema_url = "https://veo-ibd.github.io/veoibd-schemas/assets/releases/v0.0.3-dev/veoibd_specimen_schema.json"
 
     _required_filename = "clinical_specimen.csv"
 
